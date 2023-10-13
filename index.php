@@ -5,20 +5,21 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Dotenv\Dotenv;
 
 const API_URL = 'https://data.cityofnewyork.us/resource/eabe-havv.json';
+const COMPLAINTS_FILE = 'complaints.txt';
 
 // Using cURL because Sendgrid's PHP library is broken (autoloading doesn't work)
 function sendEmail($complaintIds): void
 {
     $url = 'https://api.sendgrid.com/';
     $apiKey = $_ENV['SENDGRID_API_KEY'];
+    $message = "New complaints on BIN {$_ENV['NYC_BUILDING_ID']}: " . implode(', ', $complaintIds) . '. View them <a href="' . urlByBin() . '">here</a>.';
 
     $params = array(
-        'to'        => "jesse@jesseevers.com",
-        'toname'    => "Jesse Evers",
-        'from'      => "alerts@jesseevers.com",
-        'fromname'  => "Highside Alerts",
-        'subject'   => "New NYC building complaints",
-        'html'      => 'New complaints: ' . implode(', ', $complaintIds) . '. View them <a href="' . urlByBin() . '">here</a>. ',
+        'to'        => explode(',', $_ENV['TO_EMAILS']),
+        'from'      => $_ENV['FROM_EMAIL'],
+        'fromname'  => 'NYC Building Alerts',
+        'subject'   => 'New NYC building complaints',
+        'html'      => $message,
     );
 
     $request =  $url.'api/mail.send.json';
@@ -53,10 +54,10 @@ function main(): void
 
     $complaints = json_decode(file_get_contents(urlByBin()), true);
 
-    $complaintsFile = fopen($_ENV['COMPLAINTS_FILE'], 'a');
+    $complaintsFile = fopen(COMPLAINTS_FILE, 'a');
 
     $complaintIds = array_column($complaints, 'complaint_number');
-    $knownComplaintIds = explode("\n", file_get_contents($_ENV['COMPLAINTS_FILE']));
+    $knownComplaintIds = explode("\n", file_get_contents(COMPLAINTS_FILE));
     array_pop($knownComplaintIds);  // Remove trailing newline
     $unknownComplaintIds = array_diff($complaintIds, $knownComplaintIds);
 
